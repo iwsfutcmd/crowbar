@@ -1,98 +1,46 @@
 import React from "react";
-import clsx from "clsx";
-
-import { makeStyles } from 'tss-react/mui';
-import { createTheme, styled, StyledEngineProvider, ThemeProvider } from "@mui/material/styles";
+import Box from "@mui/material/Box";
 import CssBaseline from "@mui/material/CssBaseline";
-import "./App.css";
+import Toolbar from "@mui/material/Toolbar";
+import { ThemeProvider } from "@mui/material/styles";
 import { connect, ConnectedProps } from "react-redux";
+import "./App.css";
 import NavBar from "./components/NavBar";
 import OutputArea from "./components/OutputArea";
 import BigTextBox from "./components/BigTextBox";
+import { contentShiftSx, contentSx } from "./layoutStyles";
+import { RootState } from "./store";
+import { theme } from "./theme";
 
 const mapStateToProps = (state: RootState) => ({
-  fontFaces: state.crowbar.fonts.map((x) => x.fontFace),
+  fontFaces: state.crowbar.fonts
+    .map((font) => font.fontFace)
+    .filter((fontFace): fontFace is string => Boolean(fontFace)),
   drawerOpen: state.crowbar.drawerOpen,
 });
 
 const connector = connect(mapStateToProps, {});
 type PropsFromRedux = ConnectedProps<typeof connector>;
 
-const drawerWidth = 240;
-
-import { Theme } from '@mui/material/styles';
-import { RootState } from "./store";
-
-declare module '@mui/styles/defaultTheme' {
-  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-  interface DefaultTheme extends Theme {}
-}
-
-const theme = createTheme({
-  colorSchemes: {
-    dark: true,
-  },
-});
-
-const Offset = styled('div')(({ theme }) => theme.mixins.toolbar);
-
-const useStyles = makeStyles()((theme) => {
-  return {
-    root: { },
-    drawerHeader: {
-      display: "flex",
-      alignItems: "center",
-      padding: theme.spacing(0, 1),
-    },
-    content: {
-      flexGrow: 1,
-      padding: theme.spacing(3),
-      // transition: theme.transitions.create("margin", {
-      //   easing: theme.transitions.easing.sharp,
-      //   duration: theme.transitions.duration.leavingScreen,
-      // }),
-      marginRight: -drawerWidth,
-    },
-    contentShift: {
-      // transition: theme.transitions.create("margin", {
-      //   easing: theme.transitions.easing.easeOut,
-      //   duration: theme.transitions.duration.enteringScreen,
-      // }),
-      marginRight: 0,
-    },
-  };
-});
-
-function Component(props: PropsFromRedux) {
-  const { fontFaces, drawerOpen } = props;
-  const { classes } = useStyles();
+function Component({ fontFaces, drawerOpen }: PropsFromRedux) {
   return (
-    <div className={classes.root}>
+    <div>
       <style>{fontFaces.join("\n")}</style>
       <CssBaseline />
       <NavBar />
-      <main
-        className={clsx(classes.content, {
-          [classes.contentShift]: drawerOpen,
-        })}
-      >
-      <Offset />
+      <Box component="main" sx={[contentSx, drawerOpen && contentShiftSx]}>
+        <Toolbar />
         <BigTextBox />
         <OutputArea />
-      </main>
+      </Box>
     </div>
   );
 }
 
-const App = (props: PropsFromRedux) => {
-
-  return (
-    <StyledEngineProvider injectFirst>
-    <ThemeProvider theme={theme}>
-      <Component {...props} />
-    </ThemeProvider>
-    </StyledEngineProvider>
-  );
-};
+const App = (props: PropsFromRedux) => (
+  <ThemeProvider theme={theme}>
+    <Component {...props} />
+  </ThemeProvider>
+);
 
 export default connector(App);

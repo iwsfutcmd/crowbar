@@ -2,30 +2,29 @@
 
 import { Font, parse, Glyph, Path } from "opentype.js";
 import * as SVG from "@svgdotjs/svg.js";
+import type * as HarfBuzz from "harfbuzzjs";
 import { paletteFor } from "../palette";
 
-export let hbSingleton: any = null;
-export async function initHB() {
+export let hbSingleton: typeof HarfBuzz | null = null;
+
+// harfbuzzjs 1.x initialises its WebAssembly module when the module is
+// evaluated (the entry point uses a top-level await), so importing it is all we
+// need to do: the resulting module namespace exposes Blob, Face, Font, Buffer,
+// Feature, shape, shapeWithTrace, version, versionString, and so on.
+export async function initHB(): Promise<typeof HarfBuzz> {
   if (hbSingleton) return hbSingleton;
   const harfbuzzjs = await import("harfbuzzjs");
-  const hbPromise = harfbuzzjs;
-  if (typeof hbPromise === "function") {
-    hbSingleton = await hbPromise();
-  } else if (hbPromise && typeof hbPromise.then === "function") {
-    hbSingleton = await hbPromise;
-  } else {
-    hbSingleton = hbPromise;
-  }
-  if (!hbSingleton || typeof hbSingleton.createBuffer !== "function") {
+  if (typeof harfbuzzjs.versionString !== "function") {
     throw new Error("Failed to initialize HarfBuzz: invalid API");
   }
+  hbSingleton = harfbuzzjs;
   return hbSingleton;
 }
 
 export interface HBGlyph {
   g: number;
   cl: number;
-  offset: number;
+  offset?: number;
   dx?: number;
   dy?: number;
   ax?: number;
@@ -77,14 +76,41 @@ function remapClusters(glyphs: HBGlyph[], clustermap: number[]) {
   // We want cluster IDs to be sequential,
   // not based on UTF8 offset
   glyphs.forEach((glyph: HBGlyph) => {
-    if (!glyph.offset) {
-      glyph.offset = glyph.cl;
+    const offset = glyph.offset || glyph.cl;
+    glyph.offset = offset;
+    if (clustermap.indexOf(offset) === -1) {
+      clustermap.push(offset);
     }
-    if (clustermap.indexOf(glyph.offset) === -1) {
-      clustermap.push(glyph.offset);
-    }
-    glyph.cl = clustermap.indexOf(glyph.offset);
+    glyph.cl = clustermap.indexOf(offset);
   });
+}
+
+// Convert a HarfBuzz buffer into the flat glyph records the UI works with.
+// This mirrors the old hbjs `buffer.json()` output.
+function bufferToGlyphs(buffer: HarfBuzz.Buffer): HBGlyph[] {
+  return buffer.getGlyphInfosAndPositions().map((info) => ({
+    g: info.codepoint,
+    cl: info.cluster,
+    ax: info.xAdvance,
+    ay: info.yAdvance,
+    dx: info.xOffset,
+    dy: info.yOffset,
+  }));
+}
+
+// HarfBuzz's JSON serializer names the item differently depending on the buffer
+// content: "u" while the buffer still holds Unicode code points, "g" once it
+// holds glyphs. The trace mixes both, so normalise onto `g` (the field name the
+// UI, and the old hbjs `buffer.json()`, expect).
+function normalizeGlyph(raw: any): HBGlyph {
+  return {
+    g: raw.g ?? raw.u,
+    cl: raw.cl,
+    dx: raw.dx,
+    dy: raw.dy,
+    ax: raw.ax,
+    ay: raw.ay,
+  };
 }
 
 export class CrowbarFont {
@@ -104,7 +130,7 @@ export class CrowbarFont {
 
   supportedLanguages: Set<string>;
 
-  axes?: Map<string, Axis>;
+  axes?: Record<string, Axis>;
 
   constructor(name: string, fontBlob?: ArrayBuffer, faceIdx: number = 0) {
     this.name = name;
@@ -115,11 +141,12 @@ export class CrowbarFont {
         fontBlob
       )}`;
       this.fontFace = `@font-face{font-family:"${name}"; src:url(${this.base64});}`;
-      const blob = hbSingleton!.createBlob(fontBlob);
-      const face = hbSingleton!.createFace(blob, faceIdx);
-      this.hbFont = hbSingleton!.createFont(face);
+      const hb = hbSingleton!;
+      const blob = new hb.Blob(fontBlob);
+      const face = new hb.Face(blob, faceIdx);
+      this.hbFont = new hb.Font(face);
       this.axes = face.getAxisInfos();
-      const debgTable = face.reference_table("Debg");
+      const debgTable = face.referenceTable("Debg");
       if (debgTable) {
         this.debugInfo = JSON.parse(new TextDecoder("utf8").decode(debgTable))[
           "com.github.fonttools.feaLib"
@@ -162,17 +189,26 @@ export class CrowbarFont {
       Object.keys(options.features)
         .map((f) => (options.features[f] ? "+" : "-") + f)
         .join(",");
+    const hb = hbSingleton!;
     const font = this.hbFont;
-    const buffer = hbSingleton.createBuffer();
-    buffer.setClusterLevel(options.clusterLevel);
+    const buffer = new hb.Buffer();
+    buffer.setClusterLevel(options.clusterLevel as HarfBuzz.ClusterLevel);
     buffer.addText(s);
-    buffer.setFlags(options.bufferFlag);
+    buffer.setFlags(
+      options.bufferFlag.reduce(
+        (flags, name) => flags | ((hb.BufferFlag as any)[name] ?? 0),
+        0
+      )
+    );
     buffer.guessSegmentProperties();
     // console.log(options);
     featurestring = `+DUMY,${featurestring}`; // Seriously?
     // console.log(featurestring);
     if (options.direction !== "auto") {
-      buffer.setDirection(options.direction);
+      buffer.setDirection(
+        ((hb.Direction as any)[options.direction.toUpperCase()] ??
+          0) as HarfBuzz.Direction
+      );
     }
     if (options.script !== "") {
       buffer.setScript(options.script);
@@ -181,15 +217,25 @@ export class CrowbarFont {
       buffer.setLanguage(options.language);
     }
 
-    const preshape = buffer.json();
+    const preshape = bufferToGlyphs(buffer);
 
-    const result: StageMessage[] = hbSingleton.shapeWithTrace(
-      font,
-      buffer,
-      featurestring,
-      options.stopAt,
-      options.stopPhase
-    );
+    const features = featurestring
+      .split(",")
+      .map((f) => hb.Feature.fromString(f))
+      .filter((f): f is HarfBuzz.Feature => f !== undefined);
+
+    const result = (
+      hb.shapeWithTrace(
+        font,
+        buffer,
+        features,
+        options.stopAt,
+        options.stopPhase as HarfBuzz.TracePhase
+      ) as unknown as StageMessage[]
+    ).map((row) => ({
+      ...row,
+      t: (row.t as unknown[]).map(normalizeGlyph),
+    }));
     result.unshift({
       m: "Start of shaping",
       t: preshape,
@@ -257,8 +303,7 @@ export class CrowbarFont {
         newResult.push(r);
       }
     });
-    const endbuffer = buffer.json();
-    buffer.destroy();
+    const endbuffer = bufferToGlyphs(buffer);
     remapClusters(endbuffer, clustermap);
     newResult.push({
       m: "End of shaping",
@@ -412,6 +457,10 @@ export class CrowbarFont {
   }
 
   setVariations(variations: Record<string, number>) {
-    this.hbFont.setVariations(variations);
+    this.hbFont.setVariations(
+      Object.entries(variations).map(
+        ([tag, value]) => new hbSingleton!.Variation(tag, value)
+      )
+    );
   }
 }

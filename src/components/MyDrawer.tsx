@@ -1,6 +1,7 @@
 import React from "react";
 import { connect, ConnectedProps } from "react-redux";
 import Drawer from "@mui/material/Drawer";
+import Box from "@mui/material/Box";
 import Divider from "@mui/material/Divider";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
@@ -32,26 +33,35 @@ import {
 } from "../store/crowbarSlice";
 import { RootState } from "../store";
 import { CrowbarFont } from "../opentype/CrowbarFont";
-import { useStyles } from "../navbarstyles";
+import {
+  chipArraySx,
+  drawerHeaderSx,
+  drawerPaperSx,
+  drawerSx,
+  flagSx,
+  formControlSx,
+  smallSpaceSx,
+} from "../layoutStyles";
 import { harfbuzzScripts, opentypeLanguages } from "../opentype/constants";
 import { hbSingleton } from "../opentype/CrowbarFont";
 
 const mapStateToProps = (state: RootState) => {
   // console.log("Mapping state to props", state);
   return {
-  open: state.crowbar.drawerOpen,
-  fonts: state.crowbar.fonts,
-  selectedFontIndex: state.crowbar.selected_font,
-  featureState: state.crowbar.features,
-  featureString: state.crowbar.featureString,
-  clusterLevel: state.crowbar.clusterLevel,
-  variations: state.crowbar.variations,
-  direction: state.crowbar.direction,
-  script: state.crowbar.script,
-  language: state.crowbar.language,
-  bufferFlag: state.crowbar.bufferFlag || [],
-  showAllLookups: state.crowbar.showAllLookups,
-}};
+    open: state.crowbar.drawerOpen,
+    fonts: state.crowbar.fonts,
+    selectedFontIndex: state.crowbar.selected_font,
+    featureState: state.crowbar.features,
+    featureString: state.crowbar.featureString,
+    clusterLevel: state.crowbar.clusterLevel,
+    variations: state.crowbar.variations,
+    direction: state.crowbar.direction,
+    script: state.crowbar.script,
+    language: state.crowbar.language,
+    bufferFlag: state.crowbar.bufferFlag || [],
+    showAllLookups: state.crowbar.showAllLookups,
+  };
+};
 
 const connector = connect(mapStateToProps, {
   changedDirection,
@@ -68,13 +78,12 @@ const connector = connect(mapStateToProps, {
 type PropsFromRedux = ConnectedProps<typeof connector>;
 
 const MyDrawer = (props: PropsFromRedux) => {
-  const { classes } = useStyles();
-  const  handleDrawerClose = () => {
+  const handleDrawerClose = () => {
     props.changedDrawerState(false);
   };
   const handleVariationChange = (tag: string, value: number) => {
     const state = props.variations;
-    props.changedVariations({  ...state, [tag]: value });
+    props.changedVariations({ ...state, [tag]: value });
   };
   const font: CrowbarFont = (props.fonts || [])[props.selectedFontIndex];
   const sortLanguages = (
@@ -142,7 +151,9 @@ const MyDrawer = (props: PropsFromRedux) => {
   if (font) {
     features = (
       <div>
-        <h2 className={classes.smallspace}>Features</h2>
+        <Box component="h2" sx={smallSpaceSx}>
+          Features
+        </Box>
         <TextField
           id="featurestring"
           label="Features"
@@ -151,7 +162,7 @@ const MyDrawer = (props: PropsFromRedux) => {
           }}
         />
         {!props.featureString && (
-          <div className={classes.chipArray}>
+          <Box sx={chipArraySx}>
             {font.allFeatureTags().map((x) => (
               <Chip
                 key={x}
@@ -163,7 +174,7 @@ const MyDrawer = (props: PropsFromRedux) => {
                 label={x}
               />
             ))}
-          </div>
+          </Box>
         )}
       </div>
     );
@@ -171,8 +182,10 @@ const MyDrawer = (props: PropsFromRedux) => {
   let axes;
   if (font && font.axes) {
     axes = (
-      <FormControl className={classes.formControl}>
-        <h2 className={classes.smallspace}>Variation Axes</h2>
+      <FormControl sx={formControlSx}>
+        <Box component="h2" sx={smallSpaceSx}>
+          Variation Axes
+        </Box>
         {Object.entries(font.axes).map(([axistag, axis]) => (
           <div key={axistag}>
             <Typography>{axistag}</Typography>
@@ -196,25 +209,19 @@ const MyDrawer = (props: PropsFromRedux) => {
 
   return (
     <Drawer
-      className={classes.drawer}
+      sx={drawerSx}
       variant="persistent"
       anchor="right"
       open={props.open}
-      classes={{
-        paper: classes.drawerPaper,
-      }}
+      slotProps={{ paper: { sx: drawerPaperSx } }}
     >
-      <div className={classes.drawerHeader}>
+      <Box sx={drawerHeaderSx}>
         <IconButton onClick={handleDrawerClose}>
-          {document.dir == "rtl" ? (
-            <ChevronLeftIcon />
-          ) : (
-            <ChevronRightIcon />
-          )}
+          {document.dir == "rtl" ? <ChevronLeftIcon /> : <ChevronRightIcon />}
         </IconButton>
-      </div>
+      </Box>
 
-      <FormControl className={classes.formControl}>
+      <FormControl sx={formControlSx}>
         <InputLabel id="direction-label">Direction</InputLabel>
         <Select
           labelId="direction-label"
@@ -234,15 +241,15 @@ const MyDrawer = (props: PropsFromRedux) => {
         freeSolo
         id="script"
         options={harfbuzzScripts.sort(sortScripts)}
-        renderOption={(props, option) => (
-          <>
-            <span className={classes.flag}>
+        renderOption={({ key, ...optionProps }, option) => (
+          <Box component="li" key={key} {...optionProps}>
+            <Box component="span" sx={flagSx}>
               {font && font.supportedScripts.has(option.tag.toLowerCase())
                 ? "✅"
                 : " "}
-            </span>
+            </Box>
             {option.label}
-          </>
+          </Box>
         )}
         getOptionLabel={(option) => {
           if (typeof option === "string") {
@@ -267,13 +274,13 @@ const MyDrawer = (props: PropsFromRedux) => {
         freeSolo
         id="language"
         options={opentypeLanguages.sort(sortLanguages)}
-        renderOption={(_props, option) => (
-          <>
-            <span className={classes.flag}>
+        renderOption={({ key, ...optionProps }, option) => (
+          <Box component="li" key={key} {...optionProps}>
+            <Box component="span" sx={flagSx}>
               {font && font.supportedLanguages.has(option.tag) ? "✅" : " "}
-            </span>
+            </Box>
             {option.label}
-          </>
+          </Box>
         )}
         getOptionLabel={(option) => {
           if (typeof option === "string") {
@@ -300,7 +307,7 @@ const MyDrawer = (props: PropsFromRedux) => {
       {axes}
       <Divider />
 
-      <FormControl className={classes.formControl}>
+      <FormControl sx={formControlSx}>
         <InputLabel id="cluster-level-label">Clustering</InputLabel>
         <Select
           labelId="cluster-level-label"
@@ -313,7 +320,7 @@ const MyDrawer = (props: PropsFromRedux) => {
           <MenuItem value={2}>Characters</MenuItem>
         </Select>
       </FormControl>
-      <FormControl className={classes.formControl}>
+      <FormControl sx={formControlSx}>
         <InputLabel id="buffer-flag-label">Buffer Flags</InputLabel>
         <Select
           labelId="buffer-flag-label"
@@ -335,7 +342,7 @@ const MyDrawer = (props: PropsFromRedux) => {
           </MenuItem>
         </Select>
       </FormControl>
-      <FormControl className={classes.formControl}>
+      <FormControl sx={formControlSx}>
         <FormControlLabel
           control={
             <Checkbox
@@ -351,8 +358,8 @@ const MyDrawer = (props: PropsFromRedux) => {
         />
         <div>
           Crowbar is using
-          {hbSingleton && hbSingleton.version
-            ? ` Harfbuzz version ${hbSingleton.version_string()}`
+          {hbSingleton
+            ? ` Harfbuzz version ${hbSingleton.versionString()}`
             : " an unknown version of Harfbuzz"}
         </div>
       </FormControl>

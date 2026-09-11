@@ -3,11 +3,7 @@ import Select, { SelectChangeEvent } from "@mui/material/Select";
 import FormControl from "@mui/material/FormControl";
 import MenuItem from "@mui/material/MenuItem";
 import InputLabel from "@mui/material/InputLabel";
-import { makeStyles, createStyles } from "@mui/styles";
-import {
-  alpha,
-  useTheme,
-} from "@mui/material/styles";
+import { alpha } from "@mui/material/styles";
 import { connect, ConnectedProps } from "react-redux";
 import { CrowbarFont } from "../opentype/CrowbarFont";
 import { changedFontAction } from "../store/crowbarSlice";
@@ -30,27 +26,22 @@ const FontSelect = (props: PropsFromRedux) => {
   const handleChange = (event: SelectChangeEvent<number>) => {
     connectedChangedFontAction(event.target.value);
   };
-  const origTheme = useTheme();
-  const useStyles = makeStyles(() => {
-    return createStyles({
-      fontSelect: {
-        position: "relative",
-        borderRadius: origTheme.shape.borderRadius,
-        backgroundColor: alpha(origTheme.palette.common.white, 0.15),
-        "&:hover": {
-          backgroundColor: alpha(origTheme.palette.common.white, 0.25),
-        },
-        marginRight: 0,
-        marginLeft: origTheme.spacing(1),
-        width: "100%",
-      },
-    })
-});
-  const classes = useStyles();
 
   return (
     <div>
-      <FormControl className={classes.fontSelect}>
+      <FormControl
+        sx={(theme) => ({
+          position: "relative",
+          borderRadius: theme.shape.borderRadius,
+          backgroundColor: alpha(theme.palette.common.white, 0.15),
+          "&:hover": {
+            backgroundColor: alpha(theme.palette.common.white, 0.25),
+          },
+          marginRight: 0,
+          marginLeft: theme.spacing(1),
+          width: "100%",
+        })}
+      >
         <InputLabel id="font-select-label">
           Drag and drop to load a font
         </InputLabel>
@@ -58,10 +49,14 @@ const FontSelect = (props: PropsFromRedux) => {
           labelId="font-select-label"
           id="font-select"
           onChange={handleChange}
-          value={(fonts || []).length > selectedFontIndex ? selectedFontIndex : ""}
+          value={
+            (fonts || []).length > selectedFontIndex ? selectedFontIndex : ""
+          }
         >
           {(fonts || []).map((font: CrowbarFont, ix) => (
-            <MenuItem value={ix} key={ix}>{font.name}</MenuItem>
+            <MenuItem value={ix} key={ix}>
+              {font.name}
+            </MenuItem>
           ))}
         </Select>
       </FormControl>

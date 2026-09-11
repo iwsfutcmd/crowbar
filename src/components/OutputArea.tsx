@@ -7,7 +7,6 @@ import TableContainer from "@mui/material/TableContainer";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Paper from "@mui/material/Paper";
-import { makeStyles } from "@mui/styles";
 import { diff, Diff, DiffEdit } from "deep-diff";
 import SubdirectoryArrowRightIcon from "@mui/icons-material/SubdirectoryArrowRight";
 import SubdirectoryArrowLeftIcon from "@mui/icons-material/SubdirectoryArrowLeft";
@@ -22,7 +21,6 @@ import {
   HBGlyph,
 } from "../opentype/CrowbarFont";
 import { RootState } from "../store";
-import { useTheme } from "@mui/material";
 
 const mapStateToProps = (state: RootState) => {
   const font: CrowbarFont = state.crowbar.fonts[state.crowbar.selected_font];
@@ -41,12 +39,6 @@ const mapStateToProps = (state: RootState) => {
     showAllLookups: state.crowbar.showAllLookups,
   };
 };
-
-const useStyles = makeStyles(() => ({
-  stageheader: {
-    backgroundColor: useTheme().palette.info.main,
-  },
-}));
 
 const connector = connect(mapStateToProps);
 type PropsFromRedux = ConnectedProps<typeof connector>;
@@ -70,7 +62,6 @@ const OutputArea = (props: PropsFromRedux) => {
   const [glyphStringToBeDrawn, setGlyphStringToBeDrawn] = useState<
     HBGlyph[] | null
   >(null);
-  const classes = useStyles();
   let stage = "GSUB";
   let lastRow: StageMessage | null = null;
   let lastIndex: number | null = null;
@@ -102,6 +93,9 @@ const OutputArea = (props: PropsFromRedux) => {
     // console.log(row.m, row.t);
     let m = row.m.match(/Start of shaping/);
     if (m) {
+      // The pre-shaping buffer is only interesting when we show character-level
+      // clustering; otherwise skip the row (a <div> would be invalid inside the
+      // table body).
       return clusterLevel === 2 ? (
         <TableRow key={rowid++}>
           <TableCell> Pre-shaping</TableCell>
@@ -120,9 +114,7 @@ const OutputArea = (props: PropsFromRedux) => {
             ))}
           </TableCell>
         </TableRow>
-      ) : (
-        <div />
-      );
+      ) : null;
     }
     if (!row.glyphs && row.t[0]) {
       return (
@@ -144,7 +136,7 @@ const OutputArea = (props: PropsFromRedux) => {
       stage = m[1];
       return (
         <TableRow key={rowid++}>
-          <TableCell colSpan={2} className={classes.stageheader}>
+          <TableCell colSpan={2} sx={{ backgroundColor: "info.main" }}>
             {" "}
             {m[1]}
             Stage

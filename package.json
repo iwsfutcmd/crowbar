@@ -38,7 +38,6 @@
     "globals": "^16.4.0",
     "jiti": "^2.6.0",
     "react-dropzone": "^14.3.8",
-    "tss-react": "^4.9.19",
     "typescript": "5.9.2",
     "typescript-eslint": "^8.44.1"
   },
@@ -53,16 +52,15 @@
     "@mui/icons-material": "^7.3.2",
     "@mui/lab": "^7.0.0-beta.17",
     "@mui/material": "^7.3.2",
-    "@mui/styles": "^6.5.0",
     "@reduxjs/toolkit": "^2.9.0",
     "@svgdotjs/svg.js": "^3.2.5",
     "deep-diff": "^1.0.2",
-    "harfbuzzjs": "^0.4.12",
-    "opentype.js": "github:simoncozens/opentype.js#crowbar",
+    "harfbuzzjs": "^1.6.1",
     "next": "16.3.1",
-    "react-redux": "^9.2.0",
+    "opentype.js": "github:simoncozens/opentype.js#crowbar",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "react-redux": "^9.2.0"
   },
   "overrides": {
     "@types/react": "19.2.18"

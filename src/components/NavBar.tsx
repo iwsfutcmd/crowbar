@@ -1,7 +1,6 @@
- 
 import React, { useCallback } from "react";
-import clsx from "clsx";
 import AppBar from "@mui/material/AppBar";
+import Box from "@mui/material/Box";
 import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
 import MenuIcon from "@mui/icons-material/Menu";
@@ -10,15 +9,22 @@ import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import { connect, ConnectedProps } from "react-redux";
 import IconButton from "@mui/material/IconButton";
 import FontSelect from "./FontSelect";
-import { useStyles } from "../navbarstyles";
 import {
-  addedFontAction,
-  changedDrawerState,
-} from "../store/crowbarSlice";
+  appBarShiftSx,
+  appBarSx,
+  draggingSx,
+  growSx,
+  hideSx,
+  smallSpaceSx,
+  tinySpaceSx,
+} from "../layoutStyles";
+import { addedFontAction, changedDrawerState } from "../store/crowbarSlice";
 import MyDrawer from "./MyDrawer";
 import { RootState } from "../store";
 
-const mapStateToProps = (state: RootState) => ({ open: state.crowbar.drawerOpen });
+const mapStateToProps = (state: RootState) => ({
+  open: state.crowbar.drawerOpen,
+});
 
 const connector = connect(mapStateToProps, {
   addedFontAction,
@@ -27,7 +33,6 @@ const connector = connect(mapStateToProps, {
 type PropsFromRedux = ConnectedProps<typeof connector>;
 
 const NavBar = (props: PropsFromRedux) => {
-  const { classes } = useStyles();
   const [shaking, setShaking] = React.useState(false);
   const { open } = props;
 
@@ -64,30 +69,27 @@ const NavBar = (props: PropsFromRedux) => {
       <input {...getInputProps()} />
       <AppBar
         position="fixed"
-        className={clsx(classes.appBar, {
-          [classes.appBarShift]: open,
-          [classes.dragging]: isDragAccept,
-          shake: shaking,
-        })}
+        className={shaking ? "shake" : undefined}
+        sx={[appBarSx, open && appBarShiftSx, isDragAccept && draggingSx]}
         onAnimationEnd={() => setShaking(false)}
       >
         <Toolbar>
           <Typography variant="h6" noWrap>
             Crowbar
           </Typography>
-          <div className={classes.smallspace} />
+          <Box sx={smallSpaceSx} />
           <CloudUploadIcon />
-          <div className={classes.tinyspace} />
-          <div className={classes.grow}>
+          <Box sx={tinySpaceSx} />
+          <Box sx={growSx}>
             <FontSelect />
-          </div>
-          <div className={classes.smallspace} />
+          </Box>
+          <Box sx={smallSpaceSx} />
           <IconButton
             color="inherit"
             aria-label="open drawer"
             edge="end"
             onClick={handleDrawerOpen}
-            className={clsx(open && classes.hide)}
+            sx={open ? hideSx : undefined}
           >
             <MenuIcon />
           </IconButton>
