@@ -251,15 +251,6 @@ export class CrowbarFont {
     const startBuffers: string[] = [];
     result.forEach((r: StageMessage, ix: number) => {
       if (
-        r.m.startsWith("start lookup") ||
-        r.m.startsWith("recursing to lookup")
-      ) {
-        depth += 1;
-        startIds.push(ix);
-        startBuffers.push(JSON.stringify(r.t));
-      }
-      r.depth = depth;
-      if (
         r.m.startsWith("end lookup") ||
         r.m.startsWith("recursed to lookup")
       ) {
@@ -273,6 +264,15 @@ export class CrowbarFont {
             result[index].effective = true;
           }
         }
+      }
+      r.depth = depth;
+      if (
+        r.m.startsWith("start lookup") ||
+        r.m.startsWith("recursing to lookup")
+      ) {
+        depth += 1;
+        startIds.push(ix);
+        startBuffers.push(JSON.stringify(r.t));
       }
       remapClusters(r.t, clustermap);
     });
@@ -328,6 +328,7 @@ export class CrowbarFont {
         }
       });
     });
+    console.log(newResult);
     return newResult;
   }
 
