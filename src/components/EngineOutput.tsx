@@ -25,16 +25,38 @@ import { GlyphBox } from "./GlyphBox";
 import { SVGArea } from "./SVGArea";
 import { GitHubSettingsForm } from "./GitHubSettingsForm";
 
-function sameGlyph(a?: HBGlyph, b?: HBGlyph) {
-  if (!a || !b) return false;
-  return (
-    a.g === b.g &&
-    a.cl === b.cl &&
-    (a.ax || 0) === (b.ax || 0) &&
-    (a.ay || 0) === (b.ay || 0) &&
-    (a.dx || 0) === (b.dx || 0) &&
-    (a.dy || 0) === (b.dy || 0)
-  );
+// Where each glyph is drawn, and the pen position after it. Engines split
+// the same placement between advances and offsets differently (CoreText, for
+// instance, gives marks negative advances), so compare placements rather than
+// raw values. Native engines work in floating point, so allow 1 unit of slack.
+function placements(glyphs: HBGlyph[]) {
+  let x = 0;
+  let y = 0;
+  return glyphs.map((g) => {
+    const at = { x: x + (g.dx || 0), y: y + (g.dy || 0) };
+    x += g.ax || 0;
+    y += g.ay || 0;
+    return { ...at, endX: x, endY: y };
+  });
+}
+
+function glyphDiffs(a: HBGlyph[], b: HBGlyph[]): boolean[] {
+  const pa = placements(a);
+  const pb = placements(b);
+  const near = (p: number, q: number) => Math.abs(p - q) <= 1;
+  return Array.from({ length: Math.max(a.length, b.length) }, (_, i) => {
+    if (!a[i] || !b[i]) return true;
+    return !(
+      a[i].g === b[i].g &&
+      a[i].cl === b[i].cl &&
+      near(pa[i].x, pb[i].x) &&
+      near(pa[i].y, pb[i].y) &&
+      // Intermediate pen positions legitimately differ; only the total
+      // advance (after the last glyph) matters
+      (i < a.length - 1 ||
+        (near(pa[i].endX, pb[i].endX) && near(pa[i].endY, pb[i].endY)))
+    );
+  });
 }
 
 // Crowbar colours glyphs by cluster index, so number clusters sequentially in
@@ -108,12 +130,7 @@ export const EngineOutput = ({ font, text, engine, options }: Props) => {
   const clusterOrder: number[] = [];
   const hbRow = sequentialClusters(baseline, clusterOrder);
   const engineRow = result ? sequentialClusters(result, clusterOrder) : null;
-  const differs = engineRow
-    ? Array.from(
-        { length: Math.max(hbRow.length, engineRow.length) },
-        (_, i) => !sameGlyph(hbRow[i], engineRow[i])
-      )
-    : [];
+  const differs = engineRow ? glyphDiffs(hbRow, engineRow) : [];
   const diffCount = differs.filter(Boolean).length;
 
   const startJob = () => {
