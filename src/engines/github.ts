@@ -205,6 +205,7 @@ export async function runNativeJob(
   const jobId = `${font.hash.slice(0, 12)}-${Date.now().toString(36)}`;
   const dir = `jobs/${jobId}`;
   let runUrl: string | undefined;
+  let started = false;
   try {
     onStatus({ state: "uploading" });
     const defaultBranch = await gh.defaultBranch();
@@ -245,10 +246,10 @@ export async function runNativeJob(
           throw new Error(`Workflow run ${run.conclusion}`);
         }
         if (run) {
-          onStatus({
-            state: run.status === "queued" ? "queued" : "running",
-            url: runUrl,
-          });
+          // The collect job queues after the shaping jobs run; once anything
+          // has run, keep reporting "running".
+          started = started || run.status !== "queued";
+          onStatus({ state: started ? "running" : "queued", url: runUrl });
         }
         continue;
       }
