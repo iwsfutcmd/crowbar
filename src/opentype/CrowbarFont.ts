@@ -4,6 +4,8 @@ import { Font, parse, Glyph, Path } from "opentype.js";
 import * as SVG from "@svgdotjs/svg.js";
 import type * as HarfBuzz from "harfbuzzjs";
 import { paletteFor } from "../palette";
+import type { EngineFont, ShapingEngine } from "../engines/types";
+import { hbLanguage } from "../engines/resolve";
 
 export let hbSingleton: typeof HarfBuzz | null = null;
 
@@ -132,8 +134,25 @@ export class CrowbarFont {
 
   axes?: Record<string, Axis>;
 
-  constructor(name: string, fontBlob?: ArrayBuffer, faceIdx: number = 0) {
+  bytes?: Uint8Array;
+
+  faceIdx: number;
+
+  // SHA-256 of the font file, used to match results from native engines
+  hash: string;
+
+  engineFonts: Map<string, EngineFont>;
+
+  constructor(
+    name: string,
+    fontBlob?: ArrayBuffer,
+    faceIdx: number = 0,
+    hash: string = ""
+  ) {
     this.name = name;
+    this.faceIdx = faceIdx;
+    this.hash = hash;
+    this.engineFonts = new Map();
     this.supportedLanguages = new Set();
     this.supportedScripts = new Set();
     if (fontBlob) {
@@ -141,6 +160,7 @@ export class CrowbarFont {
         fontBlob
       )}`;
       this.fontFace = `@font-face{font-family:"${name}"; src:url(${this.base64});}`;
+      this.bytes = new Uint8Array(fontBlob);
       const hb = hbSingleton!;
       const blob = new hb.Blob(fontBlob);
       const face = new hb.Face(blob, faceIdx);
@@ -214,7 +234,7 @@ export class CrowbarFont {
       buffer.setScript(options.script);
     }
     if (options.language !== "") {
-      buffer.setLanguage(options.language);
+      buffer.setLanguage(hbLanguage(options.language));
     }
 
     const preshape = bufferToGlyphs(buffer);
@@ -328,8 +348,18 @@ export class CrowbarFont {
         }
       });
     });
-    console.log(newResult);
     return newResult;
+  }
+
+  engineFont(engine: ShapingEngine): EngineFont | null {
+    if (!this.bytes) return null;
+    if (!this.engineFonts.has(engine.id)) {
+      this.engineFonts.set(
+        engine.id,
+        engine.loadFont(this.bytes, this.faceIdx, this.hash)
+      );
+    }
+    return this.engineFonts.get(engine.id)!;
   }
 
   getGlyph(gid: number): Glyph | null {

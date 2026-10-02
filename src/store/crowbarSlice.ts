@@ -21,6 +21,7 @@ export interface CrowbarState {
   bufferFlag: string[];
   showAllLookups: boolean;
   variations: Record<string, number>;
+  engine: string;
 }
 
 export const initialState: CrowbarState = {
@@ -37,6 +38,7 @@ export const initialState: CrowbarState = {
   language: "",
   bufferFlag: [],
   showAllLookups: false,
+  engine: "harfbuzz",
 };
 
 const crowbarSlice = createSlice({
@@ -80,6 +82,9 @@ const crowbarSlice = createSlice({
       }
       state.variations = action.payload;
     },
+    changedEngine(state, action: PayloadAction<string>) {
+      state.engine = action.payload;
+    },
     changedShowAllLookups(state, action: PayloadAction<boolean>) {
       state.showAllLookups = action.payload;
     },
@@ -108,6 +113,7 @@ export const {
   changedBufferFlag,
   changedClusterLevel,
   changedVariations,
+  changedEngine,
   changedShowAllLookups,
   changedDrawerState,
   changedTextAction,
@@ -123,8 +129,12 @@ export function addedFontAction(
 ): ThunkAction<void, RootState, unknown, UnknownAction> {
   return async (dispatch) => {
     const fr = new FileReader();
-    fr.onload = (progress) => {
+    fr.onload = async () => {
       const ab = fr.result as ArrayBuffer;
+      const digest = await crypto.subtle.digest("SHA-256", ab);
+      const hash = Array.from(new Uint8Array(digest))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
       const header = new Uint8Array(ab.slice(0, 4));
       if (
         header[0] === 116 && // t
@@ -135,11 +145,11 @@ export function addedFontAction(
         // If there are more than 255 I hate you
         const count = new Uint8Array(ab.slice(11, 12))[0];
         for (let i = 0; i < count; i += 1) {
-          const f = new CrowbarFont(`${fontFile.name}#${i}`, ab, i);
+          const f = new CrowbarFont(`${fontFile.name}#${i}`, ab, i, hash);
           dispatch(addedFontActionInternal(f));
         }
       } else {
-        const f = new CrowbarFont(fontFile.name, ab);
+        const f = new CrowbarFont(fontFile.name, ab, 0, hash);
         dispatch(addedFontActionInternal(f));
       }
     };

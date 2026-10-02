@@ -1,0 +1,2 @@
+uharfbuzz>=0.50
+cryptography>=44

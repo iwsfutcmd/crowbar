@@ -16,6 +16,18 @@
   background-color: #fafae4;
 }
 
+.glyphbox.glyphdiffers {
+  background-color: #5a2a2a;
+  outline: 1px solid #e57373;
+}
+
+@media (prefers-color-scheme: light) {
+  .glyphbox.glyphdiffers {
+    background-color: #fde2e2;
+    outline-color: #d33;
+  }
+}
+
 .glyphbox {
   display: table-cell;
   border-right: 1px dotted black;

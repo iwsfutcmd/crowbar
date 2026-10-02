@@ -1,0 +1,97 @@
+# Shapes an encrypted Crowbar job with the native engines of macOS (CoreText)
+# and Windows (DirectWrite, Uniscribe). Dispatched by the Crowbar web app; see
+# src/engines/github.ts. Requires the repository secret CROWBAR_KEY.
+name: Native shaping
+run-name: Native shaping ${{ inputs.job_id }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      job_id:
+        description: Job directory under jobs/ on the jobs branch
+        required: true
+      jobs_branch:
+        description: Branch holding job and result files
+        default: crowbar-native-jobs
+
+permissions:
+  contents: write
+
+jobs:
+  shape:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            engines: coretext
+            name: macos
+          - os: windows-latest
+            engines: directwrite,uniscribe
+            name: windows
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: native
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - run: pip install -r native/requirements.txt
+      - name: Fetch job
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh api -H "Accept: application/vnd.github.raw"
+          "repos/${{ github.repository }}/contents/jobs/${{ inputs.job_id }}/job.enc?ref=${{ inputs.jobs_branch }}"
+          > job.enc
+      - name: Shape
+        env:
+          CROWBAR_KEY: ${{ secrets.CROWBAR_KEY }}
+        run: >
+          python native/shape.py --job job.enc
+          --engines ${{ matrix.engines }}
+          --out results-${{ matrix.name }}.enc
+      - uses: actions/upload-artifact@v4
+        with:
+          name: results-${{ matrix.name }}
+          path: results-${{ matrix.name }}.enc
+          retention-days: 1
+
+  collect:
+    needs: shape
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.jobs_branch }}
+      - uses: actions/download-artifact@v5
+        with:
+          pattern: results-*
+          merge-multiple: true
+          path: results
+      - name: Commit results
+        run: |
+          dir="jobs/${{ inputs.job_id }}"
+          mkdir -p "$dir"
+          cp results/*.enc "$dir/" 2>/dev/null || true
+          python3 - "$dir" <<'EOF'
+          import json, os, sys
+          d = sys.argv[1]
+          files = sorted(f for f in os.listdir(d) if f.startswith("results-"))
+          got = {f[len("results-"):-len(".enc")] for f in files}
+          failed = [p for p in ("macos", "windows") if p not in got]
+          json.dump({"files": files, "failed": failed}, open(f"{d}/done.json", "w"))
+          EOF
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$dir"
+          git commit -m "Native shaping results for ${{ inputs.job_id }}"
+          for i in 1 2 3 4 5; do
+            git push && break
+            git pull --rebase
+          done

@@ -55,6 +55,7 @@
     "@reduxjs/toolkit": "^2.9.0",
     "@svgdotjs/svg.js": "^3.2.5",
     "deep-diff": "^1.0.2",
+    "fontkit": "^2.0.4",
     "harfbuzzjs": "^1.6.1",
     "next": "16.3.1",
     "opentype.js": "github:simoncozens/opentype.js#crowbar",

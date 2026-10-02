@@ -21,6 +21,8 @@ import {
   HBGlyph,
 } from "../opentype/CrowbarFont";
 import { RootState } from "../store";
+import { getEngine, HARFBUZZ_ID } from "../engines";
+import { EngineOutput } from "./EngineOutput";
 
 const mapStateToProps = (state: RootState) => {
   const font: CrowbarFont = state.crowbar.fonts[state.crowbar.selected_font];
@@ -37,6 +39,7 @@ const mapStateToProps = (state: RootState) => {
     language: state.crowbar.language,
     bufferFlag: state.crowbar.bufferFlag,
     showAllLookups: state.crowbar.showAllLookups,
+    engine: state.crowbar.engine,
   };
 };
 
@@ -70,6 +73,17 @@ const OutputArea = (props: PropsFromRedux) => {
 
   if (!(font && font.hbFont && text)) {
     return <div />;
+  }
+
+  if (props.engine !== HARFBUZZ_ID) {
+    return (
+      <EngineOutput
+        font={font}
+        text={text}
+        engine={getEngine(props.engine)}
+        options={props}
+      />
+    );
   }
 
   const shaping = font.shapeTrace(text, {

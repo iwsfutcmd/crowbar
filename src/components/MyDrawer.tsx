@@ -18,6 +18,7 @@ import MenuItem from "@mui/material/MenuItem";
 import InputLabel from "@mui/material/InputLabel";
 import TextField from "@mui/material/TextField";
 import Autocomplete from "@mui/material/Autocomplete";
+import ListSubheader from "@mui/material/ListSubheader";
 import Checkbox from "@mui/material/Checkbox";
 import {
   changedDrawerState,
@@ -30,7 +31,9 @@ import {
   changedFeatureString,
   changedBufferFlag,
   changedShowAllLookups,
+  changedEngine,
 } from "../store/crowbarSlice";
+import { ENGINES, getEngine } from "../engines";
 import { RootState } from "../store";
 import { CrowbarFont } from "../opentype/CrowbarFont";
 import {
@@ -60,6 +63,7 @@ const mapStateToProps = (state: RootState) => {
     language: state.crowbar.language,
     bufferFlag: state.crowbar.bufferFlag || [],
     showAllLookups: state.crowbar.showAllLookups,
+    engine: state.crowbar.engine,
   };
 };
 
@@ -74,6 +78,7 @@ const connector = connect(mapStateToProps, {
   changedFeatureString,
   changedBufferFlag,
   changedShowAllLookups,
+  changedEngine,
 });
 type PropsFromRedux = ConnectedProps<typeof connector>;
 
@@ -222,6 +227,34 @@ const MyDrawer = (props: PropsFromRedux) => {
       </Box>
 
       <FormControl sx={formControlSx}>
+        <InputLabel id="engine-label">Shaping engine</InputLabel>
+        <Select
+          labelId="engine-label"
+          id="engine"
+          label="Shaping engine"
+          value={props.engine}
+          onChange={(e) => props.changedEngine(e.target.value as string)}
+        >
+          <ListSubheader>In your browser</ListSubheader>
+          {ENGINES.filter((e) => e.location === "browser").map((e) => (
+            <MenuItem key={e.id} value={e.id}>
+              {e.name}
+            </MenuItem>
+          ))}
+          <ListSubheader>Native, via GitHub Actions</ListSubheader>
+          {ENGINES.filter((e) => e.location === "native").map((e) => (
+            <MenuItem key={e.id} value={e.id}>
+              {e.name}
+            </MenuItem>
+          ))}
+        </Select>
+        <Typography variant="caption" sx={{ mt: 0.5 }}>
+          {getEngine(props.engine).description}
+        </Typography>
+      </FormControl>
+      <Divider />
+
+      <FormControl sx={formControlSx}>
         <InputLabel id="direction-label">Direction</InputLabel>
         <Select
           labelId="direction-label"
@@ -357,10 +390,9 @@ const MyDrawer = (props: PropsFromRedux) => {
           label="Show All Lookups"
         />
         <div>
-          Crowbar is using
           {hbSingleton
-            ? ` Harfbuzz version ${hbSingleton.versionString()}`
-            : " an unknown version of Harfbuzz"}
+            ? `HarfBuzz version ${hbSingleton.versionString()}`
+            : "Unknown version of HarfBuzz"}
         </div>
       </FormControl>
     </Drawer>
