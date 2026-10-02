@@ -22,7 +22,7 @@ import {
   runNativeJob,
 } from "../engines/github";
 import { GlyphBox } from "./GlyphBox";
-import { SVGArea } from "./SVGArea";
+import { RunsComparison } from "./RunsComparison";
 import { GitHubSettingsForm } from "./GitHubSettingsForm";
 
 // Where each glyph is drawn, and the pen position after it. Engines split
@@ -189,11 +189,6 @@ export const EngineOutput = ({ font, text, engine, options }: Props) => {
 
   return (
     <div>
-      <SVGArea
-        highlightedglyph={highlightedGlyph}
-        glyphstring={engineRow || hbRow}
-        font={font}
-      />
       <Box sx={{ my: 2 }}>
         <Alert
           severity={
@@ -245,6 +240,16 @@ export const EngineOutput = ({ font, text, engine, options }: Props) => {
           {showSettings && <GitHubSettingsForm />}
         </Paper>
       )}
+
+      <Paper sx={{ p: 2, mb: 2 }}>
+        <RunsComparison
+          font={font}
+          hbGlyphs={hbRow}
+          engineName={engine.name}
+          engineGlyphs={engineRow}
+          highlightedGlyph={highlightedGlyph}
+        />
+      </Paper>
 
       <TableContainer component={Paper}>
         <Table>

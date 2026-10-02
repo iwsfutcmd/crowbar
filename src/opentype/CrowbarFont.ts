@@ -487,6 +487,66 @@ export class CrowbarFont {
     return totalSVG;
   }
 
+  // Draws several pictures, each made of one or more glyph runs, on a shared
+  // coordinate system so they line up when shown at the same height. Runs
+  // without a fill are coloured by cluster, like glyphstringToSVG.
+  glyphRunsToSVGs(
+    pictures: { glyphs: HBGlyph[]; fill?: string; opacity?: number }[][],
+    highlightedglyph: number = -1
+  ): SVG.Svg[] {
+    const drawn = pictures.map((runs) => {
+      const svg = SVG.SVG();
+      const main = svg.group();
+      runs.forEach((run) => {
+        const runGroup = main.group();
+        if (run.opacity !== undefined) runGroup.opacity(run.opacity);
+        let x = 0;
+        let y = 0;
+        run.glyphs.forEach((g) => {
+          const group = runGroup.group();
+          SVG.SVG(this.getSVG(g.g))
+            .children()
+            .forEach((c) => group.add(c));
+          group.transform({ translate: [x + (g.dx || 0), y + (g.dy || 0)] });
+          group.attr({ fill: run.fill ?? paletteFor(g.cl) });
+          if (!run.fill && g.cl === highlightedglyph) {
+            const otGlyph = this.getGlyph(g.g);
+            if (otGlyph) {
+              const m = otGlyph.getMetrics();
+              group
+                .rect(otGlyph.advanceWidth, m.yMax - m.yMin)
+                .stroke({ color: "#f06", width: 5 })
+                .fill("none")
+                .transform({ translate: [0, m.yMin] });
+            }
+          }
+          x += g.ax || 0;
+          y += g.ay || 0;
+        });
+      });
+      // Flip about the baseline (not the picture's centre) so every picture
+      // shares one coordinate system.
+      main.transform({ flip: "y", origin: [0, 0] });
+      return { svg, box: main.bbox() };
+    });
+    const boxes = drawn.map((d) => d.box).filter((b) => b.width || b.height);
+    if (boxes.length === 0) return drawn.map((d) => d.svg);
+    const minX = Math.min(...boxes.map((b) => b.x));
+    const maxX = Math.max(...boxes.map((b) => b.x + b.width));
+    // After flipping, font-space y becomes -y
+    const minY = Math.min(...boxes.map((b) => -(b.y + b.height)));
+    const maxY = Math.max(...boxes.map((b) => -b.y));
+    const pad = (maxY - minY) * 0.05;
+    return drawn.map(({ svg }) =>
+      svg.viewbox(
+        minX - pad,
+        minY - pad,
+        maxX - minX + 2 * pad,
+        maxY - minY + 2 * pad
+      )
+    );
+  }
+
   setVariations(variations: Record<string, number>) {
     this.hbFont.setVariations(
       Object.entries(variations).map(

@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import Box from "@mui/material/Box";
 import { CrowbarFont, HBGlyph } from "../opentype/CrowbarFont";
 
@@ -17,11 +17,14 @@ function deleteAllChildren(e: HTMLElement) {
 }
 
 export const SVGArea = ({ glyphstring, font, highlightedglyph }: SVGProps) => {
-  const svg = useRef(document.createElement("div"));
-  // console.log("Rendering glyph string");
-  // console.log(glyphstring);
-  deleteAllChildren(svg.current);
-  font.glyphstringToSVG(glyphstring, highlightedglyph).addTo(svg.current);
+  const svg = useRef<HTMLDivElement>(null);
+  // Draw after mount: during the first render the ref isn't attached yet, so
+  // drawing during render left the preview one update behind.
+  useEffect(() => {
+    if (!svg.current) return;
+    deleteAllChildren(svg.current);
+    font.glyphstringToSVG(glyphstring, highlightedglyph).addTo(svg.current);
+  }, [font, glyphstring, highlightedglyph]);
   return (
     <Box
       sx={{
