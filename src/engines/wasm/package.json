@@ -1,0 +1,15 @@
+{
+  "name": "crowbar-shapers",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "shapers_bg.wasm",
+    "shapers.js",
+    "shapers.d.ts"
+  ],
+  "main": "shapers.js",
+  "types": "shapers.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}
